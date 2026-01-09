@@ -227,10 +227,8 @@
             if (tab === 'report') renderReport();
         }
 
-        // --- UPDATED WHATSAPP LOGIC ---
         function sendWaDetail(monthKey, monthName, inc, out) {
             if(!waNumber) return switchTab('settings');
-            
             const monthTxs = transactions.filter(t => t.date.startsWith(monthKey)).sort((a,b) => new Date(a.date) - new Date(b.date));
             
             // Hitung Saldo Bulan Lalu (Total transaksi sebelum bulan yang dipilih)
@@ -238,9 +236,8 @@
                 .filter(t => t.date < monthKey)
                 .reduce((acc, t) => t.type === 'in' ? acc + t.amount : acc - t.amount, 0);
 
-            // Hitung Saldo Keseluruhan (Total semua transaksi)
-            const totalBalance = transactions
-                .reduce((acc, t) => t.type === 'in' ? acc + t.amount : acc - t.amount, 0);
+            const currentMonthBalance = inc - out;
+            const finalBalance = prevBalance + currentMonthBalance;
 
             let txt = `*LAPORAN KEUANGAN*\nPeriode: *${monthName.toUpperCase()}*\n`;
             txt += `──────────────────\n`;
@@ -255,11 +252,10 @@
             txt += `Saldo Bulan Lalu: *${formatIDR(prevBalance)}*\n`;
             txt += `Pemasukan: *${formatIDR(inc)}*\n`;
             txt += `Pengeluaran: *- ${formatIDR(out)}*\n`;
-            txt += `Saldo Bulan Ini: *${formatIDR(inc-out)}*\n`;
+            txt += `Saldo Bulan Ini: *${formatIDR(currentMonthBalance)}*\n`;
             txt += `──────────────────\n`;
-            txt += `*SALDO AKHIR (TOTAL): ${formatIDR(totalBalance)}*\n`;
+            txt += `*SALDO AKHIR: ${formatIDR(finalBalance)}*\n`;
             txt += `──────────────────`;
-            
             window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(txt)}`, '_blank');
         }
 
