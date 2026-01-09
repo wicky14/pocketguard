@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PocketGuard Pro v4.7</title>
+    <title>PocketGuard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -114,7 +114,7 @@
 
                 <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
                     <div class="flex items-center gap-2 mb-4"><i class="fab fa-whatsapp text-emerald-500"></i><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p></div>
-                    <input type="number" id="wa-number" placeholder="628..." class="w-full bg-slate-50 px-5 py-4 rounded-2xl font-bold text-slate-700 border border-slate-100 outline-none mb-3">
+                    <input type="number" id="wa-number" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="628..." class="w-full bg-slate-50 px-5 py-4 rounded-2xl font-bold text-slate-700 border border-slate-100 outline-none mb-3">
                     <button onclick="manualSaveWa()" id="btn-save-wa" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"><i class="fas fa-save"></i> Simpan</button>
                 </div>
                 <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
@@ -159,23 +159,19 @@
         let displayLimitHome = 20;
         let displayLimitReport = 12;
 
-        // LOGIKA INSTALASI HOMESCREEN
+        // --- INSTALL LOGIC ---
         let deferredPrompt;
         const btnInstall = document.getElementById('btn-install');
-
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             btnInstall.classList.remove('hidden');
         });
-
         btnInstall.addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    btnInstall.classList.add('hidden');
-                }
+                if (outcome === 'accepted') btnInstall.classList.add('hidden');
                 deferredPrompt = null;
             }
         });
@@ -258,54 +254,112 @@
         function clearKey() { currentPinInput = ""; updatePinDots(); }
         
         function handleSilentReset() {
-            const confirmed = confirm("Reset aplikasi? Seluruh data dan PIN Anda akan dihapus permanen.");
-            if (confirmed) {
-                localStorage.clear();
-                location.reload();
-            }
+            showModal({ 
+                title: "Reset?", 
+                desc: "Seluruh data dan PIN Anda akan dihapus permanen.", 
+                icon: "fa-exclamation-triangle", 
+                iconBg: "bg-rose-100 text-rose-600", 
+                actions: [
+                    { text: "Batal", fn: () => {} },
+                    { text: "Ya, Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}
+                ] 
+            });
         }
 
         // --- MISC UI ---
         function formatIDR(num) { return "Rp " + Number(num).toLocaleString('id-ID'); }
-        
         function formatInput(e) {
             let value = e.target.value.replace(/\D/g, "");
-            if (value) {
-                e.target.value = parseInt(value).toLocaleString('id-ID');
-            } else {
-                e.target.value = "";
-            }
+            e.target.value = value ? parseInt(value).toLocaleString('id-ID') : "";
         }
 
-        function manualSaveWa() { const val = document.getElementById('wa-number').value; if (!val.startsWith('628')) return; waNumber = val; localStorage.setItem('waNumber', waNumber); showModal({ title: "Berhasil", desc: "Nomor disimpan.", icon: "fa-check", iconBg: "bg-emerald-100", actions: [{ text: "Selesai", fn: () => {} }] }); }
+        // --- VALIDATION FUNCTIONS (REPLACED ALERTS) ---
+        function manualSaveWa() { 
+            const val = document.getElementById('wa-number').value; 
+            const waPattern = /^628[0-9]{7,12}$/;
+            if (!val) { 
+                showModal({ title: "Input Kosong", desc: "Silakan masukkan nomor WhatsApp Anda.", icon: "fa-info-circle", iconBg: "bg-amber-100 text-amber-600", actions: [{ text: "Kembali", fn: () => {} }] });
+                return; 
+            }
+            if (!waPattern.test(val)) { 
+                showModal({ title: "Format Salah", desc: "Gunakan format 628xxxxxxxx (Contoh: 62812345678).", icon: "fa-times-circle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Mengerti", fn: () => {} }] });
+                return; 
+            }
+            waNumber = val; 
+            localStorage.setItem('waNumber', waNumber); 
+            showModal({ title: "Berhasil", desc: "Nomor WhatsApp disimpan.", icon: "fa-check", iconBg: "bg-emerald-100 text-emerald-600", actions: [{ text: "Selesai", fn: () => {} }] }); 
+        }
         
         function saveTransaction(type) { 
             const desc = document.getElementById('desc').value;
             const amountRaw = document.getElementById('amount').value.replace(/\./g, "");
             const amount = parseInt(amountRaw);
             const date = document.getElementById('date').value; 
-            
-            if(!desc.trim()) { alert("Keterangan tidak boleh kosong!"); return; }
-            if(isNaN(amount) || amount <= 0) { alert("Nominal harus lebih dari 0!"); return; }
-            if(!date) { alert("Pilih tanggal transaksi!"); return; }
+
+            if(!desc.trim()) { 
+                showModal({ title: "Gagal", desc: "Keterangan transaksi tidak boleh kosong!", icon: "fa-pen", iconBg: "bg-amber-100 text-amber-600", actions: [{ text: "Perbaiki", fn: () => {} }] });
+                return; 
+            }
+            if(isNaN(amount) || amount <= 0) { 
+                showModal({ title: "Nominal Salah", desc: "Masukkan jumlah uang yang valid (di atas 0).", icon: "fa-coins", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Perbaiki", fn: () => {} }] });
+                return; 
+            }
+            if(!date) { 
+                showModal({ title: "Tanggal Kosong", desc: "Silakan pilih tanggal transaksi.", icon: "fa-calendar", iconBg: "bg-amber-100 text-amber-600", actions: [{ text: "Pilih Tanggal", fn: () => {} }] });
+                return; 
+            }
 
             transactions.push({ id: Date.now(), desc: desc.trim(), amount, type, date }); 
             localStorage.setItem('transactions', JSON.stringify(transactions)); 
-            closeModal(); 
-            renderHome(); 
+            closeModal(); renderHome(); 
             document.getElementById('desc').value = ""; 
             document.getElementById('amount').value = ""; 
         }
 
-        function showModal({ title, desc, icon, iconBg, actions }) { const m = document.getElementById('custom-modal'), mIcon = document.getElementById('modal-icon'), mActions = document.getElementById('modal-actions'); document.getElementById('modal-title').innerText = title; document.getElementById('modal-desc').innerText = desc; mIcon.innerHTML = `<i class="fas ${icon}"></i>`; mIcon.className = `w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 ${iconBg}`; mActions.innerHTML = ""; actions.forEach(btn => { const b = document.createElement('button'); b.innerText = btn.text; b.className = `flex-1 py-4 rounded-2xl font-bold text-sm ${btn.class || 'bg-slate-100 text-slate-600'}`; b.onclick = () => { btn.fn(); closeCustomModal(); }; mActions.appendChild(b); }); m.classList.remove('hidden'); }
+        function importData(e) { 
+            const file = e.target.files[0]; 
+            if(!file) return; 
+            const reader = new FileReader(); 
+            reader.onload = (ev) => { 
+                try { 
+                    const data = JSON.parse(ev.target.result); 
+                    transactions = data.transactions || []; 
+                    pin = data.pin || pin; 
+                    waNumber = data.waNumber || waNumber; 
+                    localStorage.setItem('transactions', JSON.stringify(transactions)); 
+                    localStorage.setItem('userPin', pin); 
+                    localStorage.setItem('waNumber', waNumber); 
+                    showModal({ title: "Berhasil", desc: "Data cadangan berhasil dipulihkan.", icon: "fa-sync", iconBg: "bg-emerald-100 text-emerald-600", actions: [{ text: "Muat Ulang", fn: () => location.reload() }] });
+                } catch(err) { 
+                    showModal({ title: "File Rusak", desc: "Format file cadangan tidak valid atau rusak.", icon: "fa-file-circle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Tutup", fn: () => {} }] });
+                } 
+            }; 
+            reader.readAsText(file); 
+        }
+
+        // --- UI HELPERS ---
+        function showModal({ title, desc, icon, iconBg, actions }) { 
+            const m = document.getElementById('custom-modal'), mIcon = document.getElementById('modal-icon'), mActions = document.getElementById('modal-actions'); 
+            document.getElementById('modal-title').innerText = title; 
+            document.getElementById('modal-desc').innerText = desc; 
+            mIcon.innerHTML = `<i class="fas ${icon}"></i>`; 
+            mIcon.className = `w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 ${iconBg}`; 
+            mActions.innerHTML = ""; 
+            actions.forEach(btn => { 
+                const b = document.createElement('button'); b.innerText = btn.text; 
+                b.className = `flex-1 py-4 rounded-2xl font-bold text-sm ${btn.class || 'bg-slate-100 text-slate-600'}`; 
+                b.onclick = () => { btn.fn(); closeCustomModal(); }; 
+                mActions.appendChild(b); 
+            }); 
+            m.classList.remove('hidden'); 
+        }
         function closeCustomModal() { document.getElementById('custom-modal').classList.add('hidden'); }
         function openModal() { document.getElementById('modal').classList.remove('hidden'); document.getElementById('date').valueAsDate = new Date(); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function confirmDelete(id) { showModal({ title: "Hapus?", desc: "Data akan hilang.", icon: "fa-trash", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Hapus", class: "bg-rose-600 text-white", fn: () => { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); renderHome(); }}] }); }
+        function confirmDelete(id) { showModal({ title: "Hapus?", desc: "Data transaksi akan hilang secara permanen.", icon: "fa-trash", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Hapus", class: "bg-rose-600 text-white", fn: () => { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); renderHome(); }}] }); }
         function exportData() { const blob = new Blob([JSON.stringify({transactions, waNumber, pin})], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `PG_Backup.json`; a.click(); }
-        function importData(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { try { const data = JSON.parse(ev.target.result); transactions = data.transactions || []; pin = data.pin || pin; waNumber = data.waNumber || waNumber; localStorage.setItem('transactions', JSON.stringify(transactions)); localStorage.setItem('userPin', pin); localStorage.setItem('waNumber', waNumber); location.reload(); } catch(err) { alert("File tidak valid!"); } }; reader.readAsText(file); }
         function logoutApp() { document.getElementById('main-app').classList.add('hidden'); document.getElementById('auth-screen').style.display = 'flex'; clearKey(); }
-        function showResetConfirmation() { showModal({ title: "Reset?", desc: "Semua data akan dihapus.", icon: "fa-exclamation-triangle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
+        function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data dan PIN akses?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
         window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
     </script>
 </body>
