@@ -24,17 +24,7 @@
 | :---: | :---: | :---: |
 | ![PIN Screen](https://raw.githubusercontent.com/wicky14/pocketguard/main/screenshots/auth.png) | ![Home Screen](https://raw.githubusercontent.com/wicky14/pocketguard/main/screenshots/home.png) | ![Report Screen](https://raw.githubusercontent.com/wicky14/pocketguard/main/screenshots/report.png) |
 | *Keamanan Akses* | *Ringkasan Saldo* | *Analisis Keuangan* |
-> *Catatan: Jika gambar tidak muncul, pastikan Anda telah mengunggah screenshot ke folder `screenshots` di repositori.*
 
----
-
-## 🛠️ Teknologi
-
-* **Styling:** Tailwind CSS (via CDN)
-* **Ikon:** Font Awesome 6
-* **Font:** Plus Jakarta Sans
-* **Logika:** Vanilla JavaScript (ES6+)
-* **Penyimpanan:** Browser LocalStorage API
 
 ---
 
