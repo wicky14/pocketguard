@@ -274,7 +274,11 @@
                 iconBg: "bg-rose-100 text-rose-600", 
                 actions: [
                     { text: "Batal", fn: () => {} },
-                    { text: "Ya, Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}
+                    { text: "Ya, Reset", class: "bg-rose-600 text-white", fn: () => { 
+                        exportData(); // Auto download backup before deletion
+                        localStorage.clear(); 
+                        location.reload(); 
+                    }}
                 ] 
             });
         }
@@ -387,7 +391,7 @@
         function confirmDelete(id) { showModal({ title: "Hapus?", desc: "Data transaksi akan hilang secara permanen.", icon: "fa-trash", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Hapus", class: "bg-rose-600 text-white", fn: () => { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); renderHome(); }}] }); }
         function exportData() { const blob = new Blob([JSON.stringify({transactions, waNumber, pin})], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `PG_Backup.json`; a.click(); }
         function logoutApp() { document.getElementById('main-app').classList.add('hidden'); document.getElementById('auth-screen').style.display = 'flex'; clearKey(); }
-        function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data dan PIN akses?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
+        function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data dan PIN akses?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { exportData(); localStorage.clear(); location.reload(); }}] }); }
         window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
     </script>
 </body>
