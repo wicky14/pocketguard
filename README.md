@@ -28,16 +28,6 @@
 
 ---
 
-## 🛠️ Teknologi
-
-* **Styling:** Tailwind CSS (via CDN)
-* **Ikon:** Font Awesome 6
-* **Font:** Plus Jakarta Sans
-* **Logika:** Vanilla JavaScript (ES6+)
-* **Penyimpanan:** Browser LocalStorage API
-
----
-
 ## 📖 Panduan Penggunaan
 
 1.  **Akses Pertama:** Buat PIN 4-digit baru untuk mengunci aplikasi.
