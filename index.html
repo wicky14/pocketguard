@@ -18,7 +18,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: #f8fafc; 
             -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+            touch-action: pan-y; /* Diubah dari manipulation agar swipe horizontal lebih lancar */
             overscroll-behavior-y: contain;
         }
 
@@ -216,24 +216,48 @@
         let displayLimitHome = 20;
         let displayLimitReport = 12;
 
-        // --- MOBILE EXPORT LOGIC (FIXED) ---
+        // --- SWIPE GESTURE LOGIC ---
+        let touchstartX = 0;
+        let touchendX = 0;
+        const mainApp = document.getElementById('main-app');
+        const tabs = ['home', 'report', 'settings'];
+
+        mainApp.addEventListener('touchstart', e => {
+            touchstartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        mainApp.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, {passive: true});
+
+        function handleSwipe() {
+            const swipeDistance = touchendX - touchstartX;
+            const threshold = 80; // Sesuaikan sensitivitas di sini
+            
+            const currentTabContent = document.querySelector('.tab-content.active');
+            const currentTabId = currentTabContent.id.replace('tab-', '');
+            let currentIndex = tabs.indexOf(currentTabId);
+
+            if (swipeDistance < -threshold) {
+                // Swipe Kiri -> Next Tab
+                if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+            } else if (swipeDistance > threshold) {
+                // Swipe Kanan -> Prev Tab
+                if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
+            }
+        }
+
+        // --- MOBILE EXPORT LOGIC ---
         async function exportData() {
             const dataString = JSON.stringify({transactions, waNumber, pin});
             const blob = new Blob([dataString], { type: 'application/json' });
-            
-            // For Mobile: Use Web Share API if available
             if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'backup.json', {type: 'application/json'})] })) {
                 const file = new File([blob], `PG_Backup_${new Date().getTime()}.json`, { type: 'application/json' });
                 try {
-                    await navigator.share({
-                        title: 'PocketGuard Backup',
-                        files: [file]
-                    });
-                } catch (err) {
-                    console.error("Share failed", err);
-                }
+                    await navigator.share({ title: 'PocketGuard Backup', files: [file] });
+                } catch (err) { console.error("Share failed", err); }
             } else {
-                // Fallback for Desktop
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = `PG_Backup.json`;
@@ -241,7 +265,7 @@
             }
         }
 
-        // --- REST OF CORE FUNCTIONS ---
+        // --- CORE FUNCTIONS ---
         function renderHome() {
             const list = document.getElementById('transaction-list');
             const loadMoreBtn = document.getElementById('load-more-container');
