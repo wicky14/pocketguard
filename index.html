@@ -11,6 +11,11 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
@@ -18,11 +23,10 @@
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: #f8fafc; 
             -webkit-tap-highlight-color: transparent;
-            touch-action: pan-y; /* Diubah dari manipulation agar swipe horizontal lebih lancar */
+            touch-action: pan-y;
             overscroll-behavior-y: contain;
         }
 
-        /* Fluid animations */
         .tab-content { display: none; }
         .tab-content.active { 
             display: block; 
@@ -60,12 +64,25 @@
             backface-visibility: hidden;
         }
         
-        /* Safe Area Padding for Modern Mobile Devices */
         .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
         .safe-pt { padding-top: env(safe-area-inset-top); }
     </style>
 </head>
 <body class="max-w-md mx-auto min-h-screen relative bg-white shadow-2xl overflow-x-hidden">
+
+    <div id="qr-display-container" class="hidden fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-2xl">
+            <h3 class="font-extrabold text-slate-800 mb-2">QR Transfer Data</h3>
+            <p class="text-xs text-slate-400 mb-6">Scan QR ini atau bagikan gambar ini untuk memindahkan data terkompresi.</p>
+            <div class="bg-slate-50 p-4 rounded-3xl mb-6">
+                <canvas id="qr-canvas" class="mx-auto rounded-xl max-w-full h-auto"></canvas>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="shareQRviaWA()" class="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"><i class="fab fa-whatsapp"></i> Share</button>
+                <button onclick="closeQRModal()" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm active:scale-95 transition-all">Tutup</button>
+            </div>
+        </div>
+    </div>
 
     <div id="custom-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeCustomModal()"></div>
@@ -176,6 +193,16 @@
                         <span>Pulihkan Data (Import)</span><i class="fas fa-upload"></i>
                         <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
                     </label>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="generateDataQR()" class="flex flex-col items-center justify-center p-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold text-[10px] uppercase tracking-tighter active:scale-95 transition-all">
+                            <i class="fas fa-qrcode text-lg mb-2"></i> Buat QR Transfer
+                        </button>
+                        <label class="flex flex-col items-center justify-center p-4 bg-slate-50 text-slate-700 rounded-2xl font-bold text-[10px] uppercase tracking-tighter active:scale-95 transition-all cursor-pointer">
+                            <i class="fas fa-camera text-lg mb-2"></i> Scan/Upload QR
+                            <input type="file" class="hidden" accept="image/*" onchange="importFromQR(event)">
+                        </label>
+                    </div>
                 </div>
                 <button onclick="showResetConfirmation()" class="w-full p-5 bg-rose-50 text-rose-600 rounded-[2rem] font-bold text-sm border border-rose-100 active:scale-95 transition-all">Reset Aplikasi</button>
             </main>
@@ -216,7 +243,90 @@
         let displayLimitHome = 20;
         let displayLimitReport = 12;
 
-        // --- SWIPE GESTURE LOGIC ---
+        // --- QR & COMPRESSION LOGIC ---
+        async function generateDataQR() {
+            try {
+                const dataString = JSON.stringify({ transactions, waNumber, pin });
+                const compressed = pako.deflate(dataString);
+                const base64Data = btoa(String.fromCharCode.apply(null, compressed));
+                
+                const canvas = document.getElementById('qr-canvas');
+                await QRCode.toCanvas(canvas, base64Data, {
+                    width: 400,
+                    margin: 2,
+                    color: { dark: '#4f46e5', light: '#ffffff' },
+                    errorCorrectionLevel: 'L'
+                });
+                
+                document.getElementById('qr-display-container').classList.remove('hidden');
+            } catch (err) {
+                showModal({ title: "Gagal", desc: "Data terlalu besar untuk QR.", icon: "fa-circle-xmark", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+            }
+        }
+
+        function closeQRModal() { document.getElementById('qr-display-container').classList.add('hidden'); }
+
+        function shareQRviaWA() {
+            const canvas = document.getElementById('qr-canvas');
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], "PocketGuard_QR.png", { type: "image/png" });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file], title: 'PocketGuard QR', text: 'Scan untuk impor data.' });
+                    } catch (err) { console.error(err); }
+                } else {
+                    const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = "PocketGuard_QR.png"; a.click();
+                }
+            });
+        }
+
+        async function importFromQR(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width; canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code) {
+                        try {
+                            const binary = atob(code.data);
+                            const binArr = new Uint8Array(binary.length);
+                            for(let i=0; i<binary.length; i++) binArr[i] = binary.charCodeAt(i);
+                            const decompressed = pako.inflate(binArr, { to: 'string' });
+                            const data = JSON.parse(decompressed);
+                            
+                            showModal({
+                                title: "Data QR Ditemukan",
+                                desc: `Impor ${data.transactions.length} transaksi?`,
+                                icon: "fa-file-import", iconBg: "bg-indigo-100 text-indigo-600",
+                                actions: [
+                                    { text: "Batal", fn: () => {} },
+                                    { text: "Impor", class: "bg-indigo-600 text-white", fn: () => {
+                                        localStorage.setItem('transactions', JSON.stringify(data.transactions));
+                                        localStorage.setItem('userPin', data.pin);
+                                        localStorage.setItem('waNumber', data.waNumber);
+                                        location.reload();
+                                    }}
+                                ]
+                            });
+                        } catch(err) { 
+                            showModal({ title: "Gagal", desc: "Data QR tidak valid", icon: "fa-times-circle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+                        }
+                    } else { 
+                        showModal({ title: "Gagal", desc: "QR Code tidak ditemukan", icon: "fa-search", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+                    }
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         let touchstartX = 0;
         let touchendX = 0;
         const mainApp = document.getElementById('main-app');
@@ -233,39 +343,25 @@
 
         function handleSwipe() {
             const swipeDistance = touchendX - touchstartX;
-            const threshold = 80; // Sesuaikan sensitivitas di sini
-            
+            const threshold = 80;
             const currentTabContent = document.querySelector('.tab-content.active');
             const currentTabId = currentTabContent.id.replace('tab-', '');
             let currentIndex = tabs.indexOf(currentTabId);
-
-            if (swipeDistance < -threshold) {
-                // Swipe Kiri -> Next Tab
-                if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
-            } else if (swipeDistance > threshold) {
-                // Swipe Kanan -> Prev Tab
-                if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
-            }
+            if (swipeDistance < -threshold) { if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]); } 
+            else if (swipeDistance > threshold) { if (currentIndex > 0) switchTab(tabs[currentIndex - 1]); }
         }
 
-        // --- MOBILE EXPORT LOGIC ---
         async function exportData() {
             const dataString = JSON.stringify({transactions, waNumber, pin});
             const blob = new Blob([dataString], { type: 'application/json' });
             if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'backup.json', {type: 'application/json'})] })) {
                 const file = new File([blob], `PG_Backup_${new Date().getTime()}.json`, { type: 'application/json' });
-                try {
-                    await navigator.share({ title: 'PocketGuard Backup', files: [file] });
-                } catch (err) { console.error("Share failed", err); }
+                try { await navigator.share({ title: 'PocketGuard Backup', files: [file] }); } catch (err) { console.error(err); }
             } else {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `PG_Backup.json`;
-                a.click();
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `PG_Backup.json`; a.click();
             }
         }
 
-        // --- CORE FUNCTIONS ---
         function renderHome() {
             const list = document.getElementById('transaction-list');
             const loadMoreBtn = document.getElementById('load-more-container');
@@ -327,63 +423,64 @@
 
         function pressKey(num) { if (currentPinInput.length < 4) { currentPinInput += num; updatePinDots(); if (currentPinInput.length === 4) setTimeout(checkPin, 300); } }
         function updatePinDots() { const dots = document.querySelectorAll('#pin-dots div'); dots.forEach((dot, i) => { if(i < currentPinInput.length) { dot.classList.add('bg-white', 'scale-125'); dot.classList.remove('border-indigo-300'); } else { dot.classList.remove('bg-white', 'scale-125'); dot.classList.add('border-indigo-300'); } }); }
+        
         function checkPin() { 
-            if (!pin) { 
-                localStorage.setItem('userPin', currentPinInput); 
-                location.reload(); 
-            } else if (currentPinInput === pin) { 
-                document.getElementById('auth-screen').style.display = 'none'; 
-                document.getElementById('main-app').classList.remove('hidden'); 
-                renderHome(); 
-            } else { 
-                showModal({ title: "PIN Salah", desc: "Akses ditolak.", icon: "fa-lock", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ulangi", class: "bg-slate-100", fn: () => clearKey() }] }); 
-            } 
+            if (!pin) { localStorage.setItem('userPin', currentPinInput); location.reload(); } 
+            else if (currentPinInput === pin) { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('main-app').classList.remove('hidden'); renderHome(); } 
+            else { showModal({ title: "PIN Salah", desc: "Akses ditolak.", icon: "fa-lock", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ulangi", class: "bg-slate-100", fn: () => clearKey() }] }); } 
         }
-        function clearKey() { currentPinInput = ""; updatePinDots(); }
-        function handleSilentReset() { showModal({ title: "Reset?", desc: "Seluruh data dan PIN Anda akan dihapus permanen.", icon: "fa-exclamation-triangle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Ya, Reset", class: "bg-rose-600 text-white", fn: () => { exportData().then(() => { localStorage.clear(); location.reload(); }); }}] }); }
-        function initChangePin() { showModal({ title: "Ganti PIN", desc: "Silakan logout terlebih dahulu untuk mereset PIN melalui layar otentikasi.", icon: "fa-shield-halved", iconBg: "bg-indigo-100 text-indigo-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Lanjut Logout", class: "bg-indigo-600 text-white", fn: () => { localStorage.removeItem('userPin'); location.reload(); }}] }); }
 
+        function clearKey() { currentPinInput = ""; updatePinDots(); }
+        function handleSilentReset() { showModal({ title: "Reset?", desc: "Seluruh data dan PIN Anda akan dihapus.", icon: "fa-exclamation-triangle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Ya, Reset", class: "bg-rose-600 text-white", fn: () => { exportData().then(() => { localStorage.clear(); location.reload(); }); }}] }); }
+        function initChangePin() { showModal({ title: "Ganti PIN", desc: "Silakan logout untuk mereset PIN.", icon: "fa-shield-halved", iconBg: "bg-indigo-100 text-indigo-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Logout", class: "bg-indigo-600 text-white", fn: () => { localStorage.removeItem('userPin'); location.reload(); }}] }); }
         function formatIDR(num) { return "Rp " + Number(num).toLocaleString('id-ID'); }
-        function formatInput(e) {
-            let value = e.target.value.replace(/\D/g, "");
-            e.target.value = value ? parseInt(value).toLocaleString('id-ID') : "";
-        }
+        function formatInput(e) { let value = e.target.value.replace(/\D/g, ""); e.target.value = value ? parseInt(value).toLocaleString('id-ID') : ""; }
 
         function manualSaveWa() { 
             const val = document.getElementById('wa-number').value; 
-            if (/^628[0-9]{7,12}$/.test(val)) {
-                waNumber = val; localStorage.setItem('waNumber', waNumber); 
-                showModal({ title: "Berhasil", desc: "Nomor WhatsApp disimpan.", icon: "fa-check", iconBg: "bg-emerald-100 text-emerald-600", actions: [{ text: "Selesai", fn: () => {} }] }); 
-            } else {
-                showModal({ title: "Format Salah", desc: "Gunakan format 628xxxxxxxx.", icon: "fa-times-circle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Mengerti", fn: () => {} }] });
-            }
+            if (/^628[0-9]{7,12}$/.test(val)) { waNumber = val; localStorage.setItem('waNumber', waNumber); showModal({ title: "Berhasil", desc: "Nomor disimpan.", icon: "fa-check", iconBg: "bg-emerald-100 text-emerald-600", actions: [{ text: "Ok", fn: () => {} }] }); } 
+            else { showModal({ title: "Format Salah", desc: "Gunakan 628xxxxxxxx.", icon: "fa-times-circle", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] }); }
         }
         
         function saveTransaction(type) { 
-            const desc = document.getElementById('desc').value, amount = parseInt(document.getElementById('amount').value.replace(/\./g, "")), date = document.getElementById('date').value; 
-            if(!desc.trim() || isNaN(amount) || amount <= 0 || !date) {
-                showModal({ title: "Data Tidak Lengkap", desc: "Periksa kembali input Anda.", icon: "fa-info-circle", iconBg: "bg-amber-100 text-amber-600", actions: [{ text: "Perbaiki", fn: () => {} }] });
+            const desc = document.getElementById('desc').value;
+            const amountStr = document.getElementById('amount').value.replace(/\./g, "");
+            const amount = parseInt(amountStr); 
+            const date = document.getElementById('date').value; 
+
+            if (!date) {
+                showModal({ title: "Data Kurang", desc: "Tanggal harus diisi", icon: "fa-calendar", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
                 return;
             }
-            transactions.push({ id: Date.now(), desc: desc.trim(), amount, type, date }); 
+            if (!desc || desc.trim() === "") {
+                showModal({ title: "Data Kurang", desc: "Keterangan harus diisi", icon: "fa-pen", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+                return;
+            }
+            if (isNaN(amount) || amount <= 0) {
+                showModal({ title: "Data Kurang", desc: "Nominal harus lebih dari 0", icon: "fa-money-bill", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+                return;
+            }
+
+            transactions.push({ id: Date.now(), desc: desc.trim(), amount: amount, type: type, date: date }); 
             localStorage.setItem('transactions', JSON.stringify(transactions)); 
-            closeModal(); renderHome(); 
-            document.getElementById('desc').value = ""; document.getElementById('amount').value = ""; 
+            document.getElementById('desc').value = "";
+            document.getElementById('amount').value = "";
+            closeModal(); 
+            renderHome(); 
         }
 
         function importData(e) { 
-            const file = e.target.files[0]; 
-            if(!file) return; 
+            const file = e.target.files[0]; if(!file) return; 
             const reader = new FileReader(); 
             reader.onload = (ev) => { 
                 try { 
                     const data = JSON.parse(ev.target.result); 
-                    transactions = data.transactions || []; pin = data.pin || pin; waNumber = data.waNumber || waNumber; 
-                    localStorage.setItem('transactions', JSON.stringify(transactions)); localStorage.setItem('userPin', pin); localStorage.setItem('waNumber', waNumber); 
-                    showModal({ title: "Berhasil", desc: "Data dipulihkan.", icon: "fa-sync", iconBg: "bg-emerald-100 text-emerald-600", actions: [{ text: "Muat Ulang", fn: () => location.reload() }] });
-                } catch(err) { showModal({ title: "File Rusak", desc: "Format tidak valid.", icon: "fa-file-circle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Tutup", fn: () => {} }] }); } 
-            }; 
-            reader.readAsText(file); 
+                    transactions = data.transactions; localStorage.setItem('transactions', JSON.stringify(transactions)); 
+                    location.reload();
+                } catch(err) { 
+                    showModal({ title: "Gagal", desc: "File cadangan rusak atau tidak valid", icon: "fa-file-excel", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+                } 
+            }; reader.readAsText(file); 
         }
 
         function showModal({ title, desc, icon, iconBg, actions }) { 
@@ -393,22 +490,20 @@
             mActions.innerHTML = ""; 
             actions.forEach(btn => { 
                 const b = document.createElement('button'); b.innerText = btn.text; 
-                b.className = `flex-1 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 ${btn.class || 'bg-slate-100 text-slate-600'}`; 
+                b.className = `flex-1 py-4 rounded-2xl font-bold text-sm active:scale-95 ${btn.class || 'bg-slate-100 text-slate-600'}`; 
                 b.onclick = () => { btn.fn(); closeCustomModal(); }; mActions.appendChild(b); 
             }); 
             m.classList.remove('hidden'); 
         }
+
         function closeCustomModal() { document.getElementById('custom-modal').classList.add('hidden'); }
         function openModal() { document.getElementById('modal').classList.remove('hidden'); document.getElementById('date').valueAsDate = new Date(); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function confirmDelete(id) { showModal({ title: "Hapus?", desc: "Data transaksi akan hilang permanen.", icon: "fa-trash", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Hapus", class: "bg-rose-600 text-white", fn: () => { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); renderHome(); }}] }); }
+        function confirmDelete(id) { showModal({ title: "Hapus?", desc: "Data transaksi akan hilang.", icon: "fa-trash", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Hapus", class: "bg-rose-600 text-white", fn: () => { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); renderHome(); }}] }); }
         function logoutApp() { document.getElementById('main-app').classList.add('hidden'); document.getElementById('auth-screen').style.display = 'flex'; clearKey(); }
-        function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data dan PIN?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { exportData().then(() => { localStorage.clear(); location.reload(); }); }}] }); }
+        function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
         
-        window.onload = () => { 
-            if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; 
-            document.getElementById('wa-number').value = waNumber; 
-        };
+        window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
     </script>
 </body>
 </html>
