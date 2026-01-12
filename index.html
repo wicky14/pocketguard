@@ -365,12 +365,17 @@
             const fileName = `PG_Backup_${new Date().getTime()}.json`;
             const blob = new Blob([dataString], { type: 'application/json' });
             
-            if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, {type: 'application/json'})] })) {
+            // Cek apakah browser mendukung fitur Share (biasanya hanya di HP)
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, {type: 'application/json'})] })) {
                 try {
                     await navigator.share({ title: 'PocketGuard Backup', files: [new File([blob], fileName, {type: 'application/json'})] });
                     return;
-                } catch (err) { console.log("Share failed, fallback to blob."); }
+                } catch (err) { 
+                    console.log("Share dibatalkan atau tidak didukung, beralih ke download."); 
+                }
             }
+            
+            // Jika di PC, fungsi ini yang akan dijalankan
             forceBlobDownload(blob, fileName);
         }
 
