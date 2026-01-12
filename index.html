@@ -52,7 +52,6 @@
         }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* Perbaikan Modal untuk APK/Keyboard */
         #modal.active-flex {
             display: flex !important;
             align-items: center;
@@ -259,7 +258,6 @@
         let displayLimitHome = 20;
         let displayLimitReport = 12;
 
-        // --- QR & COMPRESSION LOGIC ---
         async function generateDataQR() {
             try {
                 const dataString = JSON.stringify({ transactions, waNumber, pin });
@@ -282,16 +280,18 @@
 
         function closeQRModal() { document.getElementById('qr-display-container').classList.add('hidden'); }
 
+        // UPDATED: Workaround for APK Downloads (QR Image)
         function shareQRviaWA() {
             const canvas = document.getElementById('qr-canvas');
+            const fileName = "PocketGuard_QR.png";
             canvas.toBlob(async (blob) => {
-                const file = new File([blob], "PocketGuard_QR.png", { type: "image/png" });
+                const file = new File([blob], fileName, { type: "image/png" });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({ files: [file], title: 'PocketGuard QR', text: 'Scan untuk impor data.' });
-                    } catch (err) { console.error(err); }
+                    } catch (err) { forceBlobDownload(blob, fileName); }
                 } else {
-                    const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = "PocketGuard_QR.png"; a.click();
+                    forceBlobDownload(blob, fileName);
                 }
             });
         }
@@ -343,39 +343,50 @@
             reader.readAsDataURL(file);
         }
 
+        // SWIPE LOGIC
         let touchstartX = 0;
         let touchendX = 0;
         const mainApp = document.getElementById('main-app');
         const tabs = ['home', 'report', 'settings'];
-
-        mainApp.addEventListener('touchstart', e => {
-            touchstartX = e.changedTouches[0].screenX;
-        }, {passive: true});
-
-        mainApp.addEventListener('touchend', e => {
-            touchendX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }, {passive: true});
-
+        mainApp.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
+        mainApp.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
         function handleSwipe() {
             const swipeDistance = touchendX - touchstartX;
             const threshold = 80;
-            const currentTabContent = document.querySelector('.tab-content.active');
-            const currentTabId = currentTabContent.id.replace('tab-', '');
+            const currentTabId = document.querySelector('.tab-content.active').id.replace('tab-', '');
             let currentIndex = tabs.indexOf(currentTabId);
-            if (swipeDistance < -threshold) { if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]); } 
-            else if (swipeDistance > threshold) { if (currentIndex > 0) switchTab(tabs[currentIndex - 1]); }
+            if (swipeDistance < -threshold && currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+            else if (swipeDistance > threshold && currentIndex > 0) switchTab(tabs[currentIndex - 1]);
         }
 
+        // UPDATED: Workaround for APK Downloads (JSON Backup)
         async function exportData() {
             const dataString = JSON.stringify({transactions, waNumber, pin});
+            const fileName = `PG_Backup_${new Date().getTime()}.json`;
             const blob = new Blob([dataString], { type: 'application/json' });
-            if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'backup.json', {type: 'application/json'})] })) {
-                const file = new File([blob], `PG_Backup_${new Date().getTime()}.json`, { type: 'application/json' });
-                try { await navigator.share({ title: 'PocketGuard Backup', files: [file] }); } catch (err) { console.error(err); }
-            } else {
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `PG_Backup.json`; a.click();
+            
+            if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, {type: 'application/json'})] })) {
+                try {
+                    await navigator.share({ title: 'PocketGuard Backup', files: [new File([blob], fileName, {type: 'application/json'})] });
+                    return;
+                } catch (err) { console.log("Share failed, fallback to blob."); }
             }
+            forceBlobDownload(blob, fileName);
+        }
+
+        // Helper function for forced blob download
+        function forceBlobDownload(blob, filename) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
         }
 
         function renderHome() {
@@ -464,25 +475,14 @@
             const amount = parseInt(amountStr); 
             const date = document.getElementById('date').value; 
 
-            if (!date) {
-                showModal({ title: "Data Kurang", desc: "Tanggal harus diisi", icon: "fa-calendar", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
+            if (!date || !desc || isNaN(amount) || amount <= 0) {
+                showModal({ title: "Data Kurang", desc: "Semua bidang harus diisi dengan benar.", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
                 return;
             }
-            if (!desc || desc.trim() === "") {
-                showModal({ title: "Data Kurang", desc: "Keterangan harus diisi", icon: "fa-pen", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
-                return;
-            }
-            if (isNaN(amount) || amount <= 0) {
-                showModal({ title: "Data Kurang", desc: "Nominal harus lebih dari 0", icon: "fa-money-bill", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
-                return;
-            }
-
             transactions.push({ id: Date.now(), desc: desc.trim(), amount: amount, type: type, date: date }); 
             localStorage.setItem('transactions', JSON.stringify(transactions)); 
-            document.getElementById('desc').value = "";
-            document.getElementById('amount').value = "";
-            closeModal(); 
-            renderHome(); 
+            document.getElementById('desc').value = ""; document.getElementById('amount').value = "";
+            closeModal(); renderHome(); 
         }
 
         function importData(e) { 
@@ -493,9 +493,7 @@
                     const data = JSON.parse(ev.target.result); 
                     transactions = data.transactions; localStorage.setItem('transactions', JSON.stringify(transactions)); 
                     location.reload();
-                } catch(err) { 
-                    showModal({ title: "Gagal", desc: "File cadangan rusak atau tidak valid", icon: "fa-file-excel", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] });
-                } 
+                } catch(err) { showModal({ title: "Gagal", desc: "File cadangan tidak valid", icon: "fa-file-excel", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Ok", fn: () => {} }] }); } 
             }; reader.readAsText(file); 
         }
 
@@ -513,24 +511,11 @@
         }
 
         function closeCustomModal() { document.getElementById('custom-modal').classList.add('hidden'); }
-        
-        // UPDATED MODAL FUNCTIONS
-        function openModal() { 
-            const m = document.getElementById('modal');
-            m.classList.remove('hidden'); 
-            m.classList.add('active-flex');
-            document.getElementById('date').valueAsDate = new Date(); 
-        }
-        function closeModal() { 
-            const m = document.getElementById('modal');
-            m.classList.add('hidden'); 
-            m.classList.remove('active-flex');
-        }
-
+        function openModal() { const m = document.getElementById('modal'); m.classList.remove('hidden'); m.classList.add('active-flex'); document.getElementById('date').valueAsDate = new Date(); }
+        function closeModal() { const m = document.getElementById('modal'); m.classList.add('hidden'); m.classList.remove('active-flex'); }
         function confirmDelete(id) { showModal({ title: "Hapus?", desc: "Data transaksi akan hilang.", icon: "fa-trash", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Hapus", class: "bg-rose-600 text-white", fn: () => { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); renderHome(); }}] }); }
         function logoutApp() { document.getElementById('main-app').classList.add('hidden'); document.getElementById('auth-screen').style.display = 'flex'; clearKey(); }
         function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
-        
         window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
     </script>
 </body>
