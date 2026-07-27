@@ -150,8 +150,8 @@
     </div>
 
     <div id="main-app" class="hidden min-h-[-webkit-fill-available] flex flex-col bg-slate-50">
-        <div id="tab-home" class="tab-content active" style="padding-bottom: calc(6rem + var(--safe-area-inset-bottom));">
-            <header class="p-4 bg-indigo-600 text-white rounded-b-[3.5rem] shadow-2xl sticky top-0 z-30 safe-pt" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
+        <div id="tab-home" class="tab-content active" style="padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
+            <header class="p-4 bg-indigo-600 text-white rounded-b-[3.5rem] shadow-2xl sticky top-0 z-30">
                 <div class="flex justify-between items-start mb-4">
                     <div class="min-w-0">
                         <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Total Saldo</p>
@@ -185,8 +185,8 @@
             </main>
         </div>
 
-        <div id="tab-report" class="tab-content" style="padding-bottom: calc(6rem + var(--safe-area-inset-bottom));">
-            <header class="p-4 bg-white border-b border-slate-100 safe-pt" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
+        <div id="tab-report" class="tab-content" style="padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
+            <header class="p-4 bg-white border-b border-slate-100">
                 <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Analisa</h2>
             </header>
             <main class="p-3">
@@ -199,8 +199,8 @@
             </main>
         </div>
 
-        <div id="tab-settings" class="tab-content" style="padding-bottom: calc(6rem + var(--safe-area-inset-bottom));">
-            <header class="p-4 bg-white border-b border-slate-100 safe-pt" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
+        <div id="tab-settings" class="tab-content" style="padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
+            <header class="p-4 bg-white border-b border-slate-100">
                 <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Opsi</h2>
             </header>
             <main class="p-3 space-y-4">
@@ -552,22 +552,23 @@
         function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
         window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
 
-        function updateSafeArea() {
+        function updateKeyboardInset() {
             if (window.visualViewport) {
-                const vv = window.visualViewport;
-                const offsetTop = vv.offsetTop || 0;
-                const offsetBottom = window.innerHeight - vv.height - offsetTop;
-                document.documentElement.style.setProperty('--safe-area-inset-top', Math.max(offsetTop, 0) + 'px');
-                document.documentElement.style.setProperty('--safe-area-inset-bottom', Math.max(offsetBottom, 0) + 'px');
+                const bottom = window.innerHeight - window.visualViewport.height - (window.visualViewport.offsetTop || 0);
+                if (bottom > 0) {
+                    document.documentElement.style.setProperty('--safe-area-inset-bottom', bottom + 'px');
+                } else {
+                    document.documentElement.style.removeProperty('--safe-area-inset-bottom');
+                }
             }
         }
 
-        updateSafeArea();
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', updateSafeArea);
+            window.visualViewport.addEventListener('resize', updateKeyboardInset);
         }
-        window.addEventListener('resize', updateSafeArea);
-        window.addEventListener('orientationchange', () => setTimeout(updateSafeArea, 300));
+        window.addEventListener('orientationchange', () => {
+            document.documentElement.style.removeProperty('--safe-area-inset-bottom');
+        });
     </script>
 </body>
 </html>
