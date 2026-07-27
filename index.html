@@ -150,13 +150,12 @@
     </div>
 
     <div id="main-app" class="hidden min-h-[-webkit-fill-available] flex flex-col bg-slate-50">
-        <div id="tab-home" class="tab-content active" style="padding-top: calc(8.5rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
-            <header class="bg-indigo-600 text-white rounded-b-[3.5rem] shadow-2xl fixed top-0 left-0 right-0 z-40" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
-                <div class="max-w-lg mx-auto px-4 pb-4">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="min-w-0">
-                            <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Total Saldo</p>
-                            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight truncate" id="total-balance">Rp 0</h2>
+        <header id="home-header" class="bg-indigo-600 text-white rounded-b-[3.5rem] shadow-2xl fixed top-0 left-0 right-0 z-40" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
+            <div class="max-w-lg mx-auto px-4 pb-4">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="min-w-0">
+                        <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Total Saldo</p>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight truncate" id="total-balance">Rp 0</h2>
                     </div>
                     <button onclick="logoutApp()" class="p-3 bg-white/10 rounded-2xl border border-white/10 active:scale-90 transition-all shrink-0"><i class="fas fa-power-off text-sm"></i></button>
                 </div>
@@ -170,9 +169,10 @@
                         <p class="font-bold text-xs sm:text-sm text-rose-400 truncate" id="total-expense">Rp 0</p>
                     </div>
                 </div>
-                    </div>
-            </header>
+            </div>
+        </header>
 
+        <div id="tab-home" class="tab-content active" style="padding-top: calc(8.5rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
             <main class="p-3">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-extrabold text-slate-800 tracking-tight text-lg">Aktivitas</h3>
@@ -466,6 +466,7 @@
             document.getElementById(`tab-${tab}`).classList.add('active');
             const activeNav = document.getElementById(`nav-${tab}`);
             activeNav.classList.remove('text-slate-300'); activeNav.classList.add('nav-active', 'text-indigo-600');
+            document.getElementById('home-header').style.display = tab === 'home' ? '' : 'none';
             if (tab === 'home') renderHome();
             if (tab === 'report') renderReport();
         }
@@ -568,9 +569,35 @@
             } catch (_) {}
         });
 
-        document.addEventListener('WebToApkInsetsApplied', function () {
+        document.addEventListener('WebToApkInsetsApplied', function (e) {
+            var d = e && e.detail;
+            if (d) setAndroidSafeArea(d.top, d.bottom, d.left, d.right);
             if (typeof renderHome === 'function') renderHome();
         });
+
+        var _detecting = false;
+        function detectInsetsFallback() {
+            if (_detecting) return;
+            _detecting = true;
+            if (window.visualViewport) {
+                var vp = window.visualViewport;
+                function calc() {
+                    var top = vp.offsetTop || 0;
+                    var bottom = (window.screen ? window.screen.height : window.innerHeight) - vp.height - top;
+                    if (bottom > 0 || top > 0) setAndroidSafeArea(top, bottom, 0, 0);
+                }
+                vp.addEventListener('resize', calc);
+                vp.addEventListener('scroll', calc);
+                setTimeout(calc, 500);
+            }
+            setTimeout(function () { _detecting = false; }, 3000);
+        }
+        window.addEventListener('resize', function () {
+            var top = 0, bottom = 0;
+            try { top = window.screen ? (window.outerHeight - window.innerHeight) : 0; } catch (_) {}
+            if (top > 0 || bottom > 0) setAndroidSafeArea(top, bottom, 0, 0);
+        });
+        setTimeout(detectInsetsFallback, 1000);
     </script>
 </body>
 </html>
