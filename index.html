@@ -20,17 +20,17 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {
-            --safe-area-inset-top: env(safe-area-inset-top, 0px);
-            --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-            --safe-area-inset-left: env(safe-area-inset-left, 0px);
-            --safe-area-inset-right: env(safe-area-inset-right, 0px);
+            --safe-area-inset-top: 0px;
+            --safe-area-inset-bottom: 0px;
+            --safe-area-inset-left: 0px;
+            --safe-area-inset-right: 0px;
         }
 
         html { height: -webkit-fill-available; }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #4f46e5;
+            background-color: #f1f5f9;
             -webkit-tap-highlight-color: transparent;
             touch-action: pan-y;
             overscroll-behavior-y: contain;
@@ -150,12 +150,13 @@
     </div>
 
     <div id="main-app" class="hidden min-h-[-webkit-fill-available] flex flex-col bg-slate-50">
-        <div id="tab-home" class="tab-content active" style="padding-top: calc(7.5rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
-            <header class="p-4 bg-indigo-600 text-white rounded-b-[3.5rem] shadow-2xl fixed top-0 z-40" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="min-w-0">
-                        <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Total Saldo</p>
-                        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight truncate" id="total-balance">Rp 0</h2>
+        <div id="tab-home" class="tab-content active" style="padding-top: calc(8.5rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
+            <header class="bg-indigo-600 text-white rounded-b-[3.5rem] shadow-2xl fixed top-0 left-0 right-0 z-40" style="padding-top: calc(1rem + var(--safe-area-inset-top));">
+                <div class="max-w-lg mx-auto px-4 pb-4">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="min-w-0">
+                            <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Total Saldo</p>
+                            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight truncate" id="total-balance">Rp 0</h2>
                     </div>
                     <button onclick="logoutApp()" class="p-3 bg-white/10 rounded-2xl border border-white/10 active:scale-90 transition-all shrink-0"><i class="fas fa-power-off text-sm"></i></button>
                 </div>
@@ -169,6 +170,7 @@
                         <p class="font-bold text-xs sm:text-sm text-rose-400 truncate" id="total-expense">Rp 0</p>
                     </div>
                 </div>
+                    </div>
             </header>
 
             <main class="p-3">
