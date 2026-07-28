@@ -181,7 +181,7 @@
             </div>
         </header>
 
-        <div id="tab-home" class="tab-content active" style="padding-top: calc(10rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
+        <div id="tab-home" class="tab-content active" style="padding-top: calc(11.5rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
             <main class="p-3">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-extrabold text-slate-800 tracking-tight text-lg">Aktivitas</h3>
@@ -589,6 +589,10 @@
             var top = parseInt(style.getPropertyValue('--safe-area-inset-top'));
             var bottom = parseInt(style.getPropertyValue('--safe-area-inset-bottom'));
             return { found: top > 0 || bottom > 0 };
+        }
+
+        if (!readSafeArea().found && /Android/.test(navigator.userAgent)) {
+            setSafeArea(24, 48);
         }
 
         function detectSafeArea() {
