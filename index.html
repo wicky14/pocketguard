@@ -83,8 +83,7 @@
             backface-visibility: hidden;
         }
 
-        .safe-pb { padding-bottom: var(--safe-area-inset-bottom); }
-        .safe-pt { padding-top: var(--safe-area-inset-top); }
+
 
         @media (min-width: 768px) {
             #pin-dots { gap: 1.5rem; }
@@ -102,8 +101,6 @@
     </style>
 </head>
 <body class="relative overflow-x-hidden">
-
-    <div id="status-bar-bg" class="fixed top-0 left-0 right-0 z-[70]" style="height: var(--safe-area-inset-top); background: #4f46e5;"></div>
 
     <div id="qr-display-container" class="hidden fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6" style="padding-top: calc(1rem + var(--safe-area-inset-top)); padding-bottom: calc(1rem + var(--safe-area-inset-bottom));">
         <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-5 text-center shadow-2xl">
@@ -172,6 +169,18 @@
             </div>
         </header>
 
+        <header id="report-header" class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-100 shadow-sm" style="display: none; height: calc(3rem + var(--safe-area-inset-top)); padding-top: var(--safe-area-inset-top);">
+            <div class="h-full max-w-lg mx-auto px-4 flex items-center">
+                <h2 class="text-xl font-extrabold text-slate-900">Analisa</h2>
+            </div>
+        </header>
+
+        <header id="settings-header" class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-100 shadow-sm" style="display: none; height: calc(3rem + var(--safe-area-inset-top)); padding-top: var(--safe-area-inset-top);">
+            <div class="h-full max-w-lg mx-auto px-4 flex items-center">
+                <h2 class="text-xl font-extrabold text-slate-900">Opsi</h2>
+            </div>
+        </header>
+
         <div id="tab-home" class="tab-content active" style="padding-top: calc(10rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
             <main class="p-3">
                 <div class="flex justify-between items-center mb-4">
@@ -187,10 +196,7 @@
             </main>
         </div>
 
-        <div id="tab-report" class="tab-content" style="padding-top: var(--safe-area-inset-top); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
-            <header class="p-4 bg-white border-b border-slate-100">
-                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Analisa</h2>
-            </header>
+        <div id="tab-report" class="tab-content" style="padding-top: calc(3rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
             <main class="p-3">
                 <div id="monthly-report-list" class="space-y-4"></div>
                 <div id="load-more-report-container" class="mt-6 hidden">
@@ -201,10 +207,7 @@
             </main>
         </div>
 
-        <div id="tab-settings" class="tab-content" style="padding-top: var(--safe-area-inset-top); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
-            <header class="p-4 bg-white border-b border-slate-100">
-                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Opsi</h2>
-            </header>
+        <div id="tab-settings" class="tab-content" style="padding-top: calc(3rem + var(--safe-area-inset-top)); padding-bottom: calc(5rem + var(--safe-area-inset-bottom));">
             <main class="p-3 space-y-4">
                 <button id="btn-install" class="hidden w-full flex justify-between items-center p-3 bg-indigo-600 text-white rounded-[2rem] font-bold text-xs shadow-lg active:scale-95 transition-all">
                     <span>Tambahkan ke Layar Utama</span>
@@ -467,6 +470,8 @@
             const activeNav = document.getElementById(`nav-${tab}`);
             activeNav.classList.remove('text-slate-300'); activeNav.classList.add('nav-active', 'text-indigo-600');
             document.getElementById('home-header').style.display = tab === 'home' ? '' : 'none';
+            document.getElementById('report-header').style.display = tab === 'report' ? '' : 'none';
+            document.getElementById('settings-header').style.display = tab === 'settings' ? '' : 'none';
             if (tab === 'home') renderHome();
             if (tab === 'report') renderReport();
         }
@@ -555,52 +560,56 @@
         function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
         window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
 
-        function setAndroidSafeArea(top, bottom, left, right) {
-            if (top !== undefined) document.documentElement.style.setProperty('--safe-area-inset-top', top + 'px');
-            if (bottom !== undefined) document.documentElement.style.setProperty('--safe-area-inset-bottom', bottom + 'px');
-            if (left !== undefined) document.documentElement.style.setProperty('--safe-area-inset-left', left + 'px');
-            if (right !== undefined) document.documentElement.style.setProperty('--safe-area-inset-right', right + 'px');
+        function setSafeArea(top, bottom) {
+            var root = document.documentElement;
+            var t = parseInt(top) || 0, b = parseInt(bottom) || 0;
+            root.style.setProperty('--safe-area-inset-top', t + 'px');
+            root.style.setProperty('--safe-area-inset-bottom', b + 'px');
         }
+        window.setSafeArea = setSafeArea;
 
         window.addEventListener('message', function (e) {
             try {
                 var d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                if (d && d.type === 'safe-area') setAndroidSafeArea(d.top, d.bottom, d.left, d.right);
+                if (d && d.type === 'safe-area') setSafeArea(d.top, d.bottom);
             } catch (_) {}
         });
 
         document.addEventListener('WebToApkInsetsApplied', function (e) {
             var d = e && e.detail;
-            if (d) setAndroidSafeArea(d.top, d.bottom, d.left, d.right);
-            if (typeof renderHome === 'function') renderHome();
+            if (d) setSafeArea(d.top, d.bottom);
         });
 
-        function detectSafeAreaFallback() {
+        function initSafeArea() {
             var root = document.documentElement;
             var style = getComputedStyle(root);
             var curTop = parseInt(style.getPropertyValue('--safe-area-inset-top'));
             var curBottom = parseInt(style.getPropertyValue('--safe-area-inset-bottom'));
             if (curTop > 0 || curBottom > 0) return;
-            var top = 0, bottom = 0;
-            if (window.screen && window.screen.availHeight && window.screen.height > window.screen.availHeight) {
-                var diff = window.screen.height - window.screen.availHeight;
-                if (diff > 0) { top = Math.round(diff * 0.4); bottom = diff - top; }
+
+            function detect() {
+                var top = 0, bottom = 0;
+                if (window.screen && window.screen.availHeight && window.screen.height > window.screen.availHeight) {
+                    var diff = window.screen.height - window.screen.availHeight;
+                    if (diff > 0) { top = Math.round(diff * 0.4); bottom = diff - top; }
+                }
+                if (top === 0 && bottom === 0 && window.visualViewport) {
+                    var vp = window.visualViewport;
+                    if (vp.offsetTop > 0) top = vp.offsetTop;
+                    if (window.screen && window.screen.height > vp.height + top) bottom = window.screen.height - vp.height - top;
+                }
+                if (top > 0 || bottom > 0) { setSafeArea(top, bottom); return; }
+                if (/Android/.test(navigator.userAgent) && window.screen) {
+                    var h = window.screen.height;
+                    if (h >= 700) { top = Math.round(h * 0.035); bottom = Math.round(h * 0.05); }
+                    else if (h >= 500) { top = Math.round(h * 0.04); bottom = Math.round(h * 0.06); }
+                    if (top > 0 || bottom > 0) setSafeArea(top, bottom);
+                }
             }
-            if (top === 0 && bottom === 0 && window.visualViewport) {
-                var vp = window.visualViewport;
-                if (vp.offsetTop > 0) top = vp.offsetTop;
-                if (window.screen && window.screen.height > vp.height + top) bottom = window.screen.height - vp.height - top;
-            }
-            if (top > 0 || bottom > 0) { setAndroidSafeArea(top, bottom, 0, 0); return; }
-            if (/Android/.test(navigator.userAgent) && window.screen) {
-                var h = window.screen.height;
-                if (h >= 700) { top = Math.round(h * 0.035); bottom = Math.round(h * 0.05); }
-                else if (h >= 500) { top = Math.round(h * 0.04); bottom = Math.round(h * 0.06); }
-                if (top > 0 || bottom > 0) setAndroidSafeArea(top, bottom, 0, 0);
-            }
+            detect();
+            setTimeout(detect, 1500);
         }
-        detectSafeAreaFallback();
-        setTimeout(detectSafeAreaFallback, 1500);
+        initSafeArea();
     </script>
 </body>
 </html>
