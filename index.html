@@ -169,15 +169,15 @@
             </div>
         </header>
 
-        <header id="report-header" class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-100 shadow-sm" style="display: none; height: calc(3rem + var(--safe-area-inset-top)); padding-top: var(--safe-area-inset-top);">
+        <header id="report-header" class="fixed top-0 left-0 right-0 z-40 bg-indigo-600 shadow-sm" style="display: none; height: calc(3rem + var(--safe-area-inset-top)); padding-top: var(--safe-area-inset-top);">
             <div class="h-full max-w-lg mx-auto px-4 flex items-center">
-                <h2 class="text-xl font-extrabold text-slate-900">Analisa</h2>
+                <h2 class="text-xl font-extrabold text-white">Analisa</h2>
             </div>
         </header>
 
-        <header id="settings-header" class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-100 shadow-sm" style="display: none; height: calc(3rem + var(--safe-area-inset-top)); padding-top: var(--safe-area-inset-top);">
+        <header id="settings-header" class="fixed top-0 left-0 right-0 z-40 bg-indigo-600 shadow-sm" style="display: none; height: calc(3rem + var(--safe-area-inset-top)); padding-top: var(--safe-area-inset-top);">
             <div class="h-full max-w-lg mx-auto px-4 flex items-center">
-                <h2 class="text-xl font-extrabold text-slate-900">Opsi</h2>
+                <h2 class="text-xl font-extrabold text-white">Opsi</h2>
             </div>
         </header>
 
@@ -560,6 +560,8 @@
         function showResetConfirmation() { showModal({ title: "Reset Total?", desc: "Hapus semua data?", icon: "fa-triangle-exclamation", iconBg: "bg-rose-100 text-rose-600", actions: [{ text: "Batal", fn: () => {} }, { text: "Reset", class: "bg-rose-600 text-white", fn: () => { localStorage.clear(); location.reload(); }}] }); }
         window.onload = () => { if (!pin) document.getElementById('auth-instruction').innerText = "Buat PIN Baru"; document.getElementById('wa-number').value = waNumber; };
 
+        var _safeAreaReady = false;
+
         function setSafeArea(top, bottom) {
             var root = document.documentElement;
             var t = parseInt(top) || 0, b = parseInt(bottom) || 0;
@@ -575,41 +577,50 @@
             } catch (_) {}
         });
 
-        document.addEventListener('WebToApkInsetsApplied', function (e) {
-            var d = e && e.detail;
-            if (d) setSafeArea(d.top, d.bottom);
+        document.addEventListener('WebToApkInsetsApplied', function () {
+            var style = getComputedStyle(document.documentElement);
+            var top = parseInt(style.getPropertyValue('--safe-area-inset-top'));
+            var bottom = parseInt(style.getPropertyValue('--safe-area-inset-bottom'));
+            if (top > 0 || bottom > 0) _safeAreaReady = true;
         });
 
-        function initSafeArea() {
-            var root = document.documentElement;
-            var style = getComputedStyle(root);
-            var curTop = parseInt(style.getPropertyValue('--safe-area-inset-top'));
-            var curBottom = parseInt(style.getPropertyValue('--safe-area-inset-bottom'));
-            if (curTop > 0 || curBottom > 0) return;
-
-            function detect() {
-                var top = 0, bottom = 0;
-                if (window.screen && window.screen.availHeight && window.screen.height > window.screen.availHeight) {
-                    var diff = window.screen.height - window.screen.availHeight;
-                    if (diff > 0) { top = Math.round(diff * 0.4); bottom = diff - top; }
-                }
-                if (top === 0 && bottom === 0 && window.visualViewport) {
-                    var vp = window.visualViewport;
-                    if (vp.offsetTop > 0) top = vp.offsetTop;
-                    if (window.screen && window.screen.height > vp.height + top) bottom = window.screen.height - vp.height - top;
-                }
-                if (top > 0 || bottom > 0) { setSafeArea(top, bottom); return; }
-                if (/Android/.test(navigator.userAgent) && window.screen) {
-                    var h = window.screen.height;
-                    if (h >= 700) { top = Math.round(h * 0.035); bottom = Math.round(h * 0.05); }
-                    else if (h >= 500) { top = Math.round(h * 0.04); bottom = Math.round(h * 0.06); }
-                    if (top > 0 || bottom > 0) setSafeArea(top, bottom);
-                }
-            }
-            detect();
-            setTimeout(detect, 1500);
+        function readSafeArea() {
+            var style = getComputedStyle(document.documentElement);
+            var top = parseInt(style.getPropertyValue('--safe-area-inset-top'));
+            var bottom = parseInt(style.getPropertyValue('--safe-area-inset-bottom'));
+            return { found: top > 0 || bottom > 0 };
         }
-        initSafeArea();
+
+        function detectSafeArea() {
+            if (_safeAreaReady) return;
+            if (readSafeArea().found) { _safeAreaReady = true; return; }
+            var top = 0, bottom = 0;
+            if (window.screen && window.screen.availHeight && window.screen.height > window.screen.availHeight) {
+                var diff = window.screen.height - window.screen.availHeight;
+                if (diff > 0) { top = Math.round(diff * 0.4); bottom = diff - top; }
+            }
+            if (top === 0 && bottom === 0 && window.visualViewport) {
+                var vp = window.visualViewport;
+                if (vp.offsetTop > 0) top = vp.offsetTop;
+                if (window.screen && window.screen.height > vp.height + top) bottom = window.screen.height - vp.height - top;
+            }
+            if (top > 0 || bottom > 0) { setSafeArea(top, bottom); return; }
+            if (/Android/.test(navigator.userAgent) && window.screen) {
+                var h = window.screen.height;
+                if (h >= 700) { top = Math.round(h * 0.035); bottom = Math.round(h * 0.05); }
+                else if (h >= 500) { top = Math.round(h * 0.04); bottom = Math.round(h * 0.06); }
+                if (top > 0 || bottom > 0) setSafeArea(top, bottom);
+            }
+        }
+
+        detectSafeArea();
+        [500, 1000, 2000, 3000, 5000].forEach(function (ms) { setTimeout(detectSafeArea, ms); });
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', function () {
+                if (!_safeAreaReady) detectSafeArea();
+            });
+        }
     </script>
 </body>
 </html>
